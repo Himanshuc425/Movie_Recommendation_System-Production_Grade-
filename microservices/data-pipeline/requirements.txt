@@ -1,0 +1,24 @@
+# Core data science packages
+numpy>=1.19.0
+pandas>=1.1.0
+scikit-learn>=0.23.0
+
+# Data processing
+python-dotenv>=0.15.0
+kafka-python>=2.0.0
+
+# Database connectors
+psycopg2-binary>=2.8.6
+pymongo>=3.11.0
+
+# API and communication
+requests>=2.25.0
+fastapi>=0.68.0
+uvicorn>=0.15.0
+
+# Monitoring and logging
+promethus-client>=0.11.0
+python-json-logger>=2.0.1
+
+# Utilities
+tqdm>=4.50.0

@@ -1,0 +1,34 @@
+# Core data science packages
+numpy>=1.19.0
+pandas>=1.1.0
+scikit-learn>=0.23.0
+scipy>=1.5.0
+
+# Deep learning packages
+tensorflow>=2.4.0
+
+# Graph processing
+networkx>=2.5.0
+
+# MLOps and experiment tracking
+mlflow>=1.15.0
+
+# Data processing
+python-dotenv>=0.15.0
+kafka-python>=2.0.0
+
+# API and communication
+fastapi>=0.68.0
+uvicorn>=0.15.0
+requests>=2.25.0
+
+# Storage and serialization
+joblib>=1.0.0
+cloudpickle>=1.6.0
+
+# Monitoring and logging
+promethus-client>=0.11.0
+python-json-logger>=2.0.1
+
+# Utilities
+tqdm>=4.50.0

@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Data Pipeline Service
+  data-pipeline:
+    build:
+      context: ./microservices/data-pipeline
+    container_name: data-pipeline
+    restart: unless-stopped
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - RAW_DATA_TOPIC=raw-data
+      - PROCESSED_DATA_TOPIC=processed-data
+    ports:
+      - "8081:8080"  # API
+      - "8001:8000"  # Metrics
+    volumes:
+      - ./data:/data
+    depends_on:
+      - kafka
+      - zookeeper
+
+  # Model Training Service
+  model-training:
+    build:
+      context: ./microservices/model-training
+    container_name: model-training
+    restart: unless-stopped
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - PROCESSED_DATA_TOPIC=processed-data
+      - MODEL_READY_TOPIC=model-ready
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_EXPERIMENT_NAME=recommendation-models
+    ports:
+      - "8082:8080"  # API
+      - "8002:8000"  # Metrics
+    volumes:
+      - ./models:/models
+      - .:/app  # Mount project root to access model implementations
+    depends_on:
+      - kafka
+      - mlflow
+
+  # Inference Service
+  inference-service:
+    build:
+      context: ./microservices/inference-service
+    container_name: inference-service
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "8080:8080"  # API
+      - "8000:8000"  # Metrics
+    volumes:
+      - ./models:/models
+      - .:/app  # Mount project root to access model implementations
+    depends_on:
+      - redis
+
+  # Kafka for message streaming
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # MLflow for experiment tracking
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.3.1
+    container_name: mlflow
+    ports:
+      - "5000:5000"
+    command: mlflow server --host 0.0.0.0 --backend-store-uri sqlite:///mlflow.db
+    volumes:
+      - ./mlflow:/mlflow
+
+  # Redis for caching
+  redis:
+    image: redis:6.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:v2.37.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:9.1.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./microservices/monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/recommendation-system.json
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+      
+  # Monitoring Service
+  monitoring-service:
+    build:
+      context: ./microservices/monitoring
+    container_name: monitoring-service
+    restart: unless-stopped
+    environment:
+      - PROMETHEUS_PORT=8000
+      - PUSHGATEWAY_URL=http://prometheus:9091
+      - DATA_PIPELINE_URL=http://data-pipeline:8080
+      - MODEL_TRAINING_URL=http://model-training:8080
+      - INFERENCE_SERVICE_URL=http://inference-service:8080
+    ports:
+      - "8083:8080"  # API
+      - "8003:8000"  # Metrics
+    depends_on:
+      - prometheus
+      - data-pipeline
+      - model-training
+      - inference-service
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:

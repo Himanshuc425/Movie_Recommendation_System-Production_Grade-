@@ -1,0 +1,27 @@
+# Core data science packages
+numpy>=1.19.0
+pandas>=1.1.0
+scikit-learn>=0.23.0
+scipy>=1.5.0
+
+# Deep learning packages
+tensorflow>=2.4.0
+
+# Graph processing
+networkx>=2.5.0
+
+# API and web framework
+fastapi>=0.68.0
+uvicorn>=0.15.0
+pydantic>=1.8.0
+requests>=2.25.0
+
+# Caching
+redis>=3.5.3
+
+# Monitoring and logging
+promethus-client>=0.11.0
+python-json-logger>=2.0.1
+
+# Utilities
+tqdm>=4.50.0

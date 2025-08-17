@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-service
+  labels:
+    app: monitoring-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-service
+  template:
+    metadata:
+      labels:
+        app: monitoring-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+    spec:
+      containers:
+      - name: monitoring-service
+        image: ${DOCKER_USERNAME}/monitoring-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: api
+        - containerPort: 8000
+          name: metrics
+        env:
+        - name: PROMETHEUS_PORT
+          value: "8000"
+        - name: PUSHGATEWAY_URL
+          value: "http://prometheus-pushgateway:9091"
+        - name: MONITORING_INTERVAL
+          value: "15"
+        - name: DATA_PIPELINE_URL
+          value: "http://data-pipeline:8080"
+        - name: MODEL_TRAINING_URL
+          value: "http://model-training:8080"
+        - name: INFERENCE_SERVICE_URL
+          value: "http://inference-service:8080"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-service
+  labels:
+    app: monitoring-service
+spec:
+  selector:
+    app: monitoring-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: api
+  - port: 8000
+    targetPort: 8000
+    name: metrics
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /monitoring(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-service
+            port:
+              number: 8080

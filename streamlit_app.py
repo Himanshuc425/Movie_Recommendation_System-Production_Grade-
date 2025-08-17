@@ -1,0 +1,1 @@
+st.plotly_chart(interactive_metrics)
